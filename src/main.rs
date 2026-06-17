@@ -130,6 +130,9 @@ fn run_server(gui_start_minimized: Option<bool>) -> Result<(), Box<dyn std::erro
 
         server_handles.push(handle);
     }
+    for handle in &server_handles {
+        println!("{:?}", handle.thread().name());
+    }
 
     let device_handle = {
         let dsu_wants = dsu_wants_device.clone();

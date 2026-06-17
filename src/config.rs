@@ -225,10 +225,10 @@ mod tests {
     fn bind_host_maps_flag() {
         assert_eq!(bind_hosts(true, IpVersion::DualStack), vec!["::".to_string(), "0.0.0.0".to_string()]);
         assert_eq!(bind_hosts(false, IpVersion::DualStack), vec!["::1".to_string(), "127.0.0.1".to_string()]);
-        
+
         assert_eq!(bind_hosts(true, IpVersion::IPv4Only), vec!["0.0.0.0".to_string()]);
         assert_eq!(bind_hosts(false, IpVersion::IPv4Only), vec!["127.0.0.1".to_string()]);
-        
+
         assert_eq!(bind_hosts(true, IpVersion::IPv6Only), vec!["::".to_string()]);
         assert_eq!(bind_hosts(false, IpVersion::IPv6Only), vec!["::1".to_string()]);
     }

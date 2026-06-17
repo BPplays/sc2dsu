@@ -3,11 +3,15 @@ use crate::stats;
 use crate::triton::{self, ControllerState};
 use std::collections::HashMap;
 use std::io::{self, Cursor, Read};
+use std::net::Ipv6Addr;
 use std::net::{SocketAddr, UdpSocket};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{Receiver, TryRecvError};
 use std::time::{Duration, Instant};
+
+use socket2::{Domain, Protocol, Socket, Type};
+use std::net::{IpAddr, SocketAddr, UdpSocket};
 
 const PROTOCOL_VERSION: u16 = 1001;
 const MAGIC_SERVER: &[u8; 4] = b"DSUS";
@@ -54,7 +58,7 @@ struct Subscriber {
 }
 
 pub struct Server {
-    socket: UdpSocket,
+    sockets: Vec<UdpSocket>,
     server_id: u32,
     subscribers: HashMap<u32, Subscriber>,
     dsu_wants_device: Arc<AtomicBool>,
@@ -70,6 +74,23 @@ pub struct Server {
     last_sample_at: Option<Instant>,
 }
 
+
+fn bind_udp_socket(ip: IpAddr, port: u16, v6only: bool) -> io::Result<UdpSocket> {
+    let domain = match ip {
+        IpAddr::V6(_) => Domain::IPV6,
+        IpAddr::V4(_) => Domain::IPV4,
+    };
+
+    let socket = Socket::new(domain, Type::DGRAM, Some(Protocol::UDP))?;
+
+    socket.set_only_v6(v6only)?;
+
+    socket.bind(&SocketAddr::new(ip, port).into())?;
+    let udp: UdpSocket = socket.into();
+    udp.set_read_timeout(Some(RECV_TIMEOUT))?;
+    Ok(udp)
+}
+
 impl Server {
     pub fn bind(
         ip_version: config::IpVersion,
@@ -79,11 +100,19 @@ impl Server {
         shutdown: Arc<AtomicBool>,
         sample_rx: Receiver<ControllerState>,
     ) -> io::Result<Self> {
-        let socket = UdpSocket::bind((config::bind_hosts(expose_to_network), port))?;
-        socket.set_read_timeout(Some(RECV_TIMEOUT))?;
+        let mut sockets = Vec::new();
+
+        for ip in config::bind_hosts(expose_to_network, ip_version) {
+            let ip: IpAddr = ip.parse().unwrap_or(
+                IpAddr::V6(Ipv6Addr::LOCALHOST),
+            );
+            let socket = bind_udp_socket(ip, port, true)?;
+            sockets.push(socket);
+        }
+
         let server_id = rand_u32();
         Ok(Self {
-            socket,
+            sockets,
             server_id,
             subscribers: HashMap::new(),
             dsu_wants_device,
@@ -100,8 +129,11 @@ impl Server {
         })
     }
 
-    pub fn local_addr(&self) -> io::Result<SocketAddr> {
-        self.socket.local_addr()
+    pub fn local_addrs(&self) -> io::Result<Vec<SocketAddr>> {
+        self.sockets
+            .iter()
+            .map(|s| s.local_addr())
+            .collect()
     }
 
     pub fn server_id(&self) -> u32 {

@@ -20,6 +20,7 @@ nwg = { package = "native-windows-gui", version = "1" }
 nwd = { package = "native-windows-derive", version = "1" }
 windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Graphics_Gdi", "Win32_System_Console", "Win32_UI_WindowsAndMessaging"] }
 socket2 = "0.5"
+tokio = { version = "1.52.3", features = ["full"] }
 
 [build-dependencies]
 embed-manifest = "1"

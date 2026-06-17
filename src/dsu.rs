@@ -3,7 +3,6 @@ use crate::stats;
 use crate::triton::{self, ControllerState};
 use std::collections::HashMap;
 use std::io::{self, Cursor, Read};
-use std::net::Ipv6Addr;
 use std::net::{SocketAddr, UdpSocket};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -11,7 +10,7 @@ use std::sync::mpsc::{Receiver, TryRecvError};
 use std::time::{Duration, Instant};
 
 use socket2::{Domain, Protocol, Socket, Type};
-use std::net::{IpAddr, SocketAddr, UdpSocket};
+use std::net::{IpAddr};
 
 const PROTOCOL_VERSION: u16 = 1001;
 const MAGIC_SERVER: &[u8; 4] = b"DSUS";
@@ -58,12 +57,13 @@ struct Subscriber {
 }
 
 pub struct Server {
-    sockets: Vec<UdpSocket>,
+    socket: UdpSocket,
     server_id: u32,
     subscribers: HashMap<u32, Subscriber>,
     dsu_wants_device: Arc<AtomicBool>,
     shutdown: Arc<AtomicBool>,
-    sample_rx: Receiver<ControllerState>,
+    // sample_rx: Receiver<ControllerState>,
+    sample_rx: tokio::sync::broadcast::Receiver<ControllerState>,
     last_gyro: [f32; 3],
     last_cleanup: Instant,
     last_stats: Instant,
@@ -93,26 +93,18 @@ fn bind_udp_socket(ip: IpAddr, port: u16, v6only: bool) -> io::Result<UdpSocket>
 
 impl Server {
     pub fn bind(
-        ip_version: config::IpVersion,
+        ip: IpAddr,
         port: u16,
-        expose_to_network: bool,
         dsu_wants_device: Arc<AtomicBool>,
         shutdown: Arc<AtomicBool>,
-        sample_rx: Receiver<ControllerState>,
+        // sample_rx: Receiver<ControllerState>,
+        sample_rx: tokio::sync::broadcast::Receiver<ControllerState>,
     ) -> io::Result<Self> {
-        let mut sockets = Vec::new();
-
-        for ip in config::bind_hosts(expose_to_network, ip_version) {
-            let ip: IpAddr = ip.parse().unwrap_or(
-                IpAddr::V6(Ipv6Addr::LOCALHOST),
-            );
-            let socket = bind_udp_socket(ip, port, true)?;
-            sockets.push(socket);
-        }
+        let socket = bind_udp_socket(ip, port, true)?;
 
         let server_id = rand_u32();
         Ok(Self {
-            sockets,
+            socket,
             server_id,
             subscribers: HashMap::new(),
             dsu_wants_device,
@@ -129,11 +121,8 @@ impl Server {
         })
     }
 
-    pub fn local_addrs(&self) -> io::Result<Vec<SocketAddr>> {
-        self.sockets
-            .iter()
-            .map(|s| s.local_addr())
-            .collect()
+    pub fn local_addr(&self) -> io::Result<SocketAddr> {
+        self.socket.local_addr()
     }
 
     pub fn server_id(&self) -> u32 {
@@ -199,8 +188,12 @@ impl Server {
                         orientation: self.orientation_q,
                     });
                 }
-                Err(TryRecvError::Empty) => return true,
-                Err(TryRecvError::Disconnected) => {
+                Err(tokio::sync::broadcast::error::TryRecvError::Empty) => return true,
+                Err(tokio::sync::broadcast::error::TryRecvError::Lagged(n)) => {
+                    eprintln!("dsu: receiver lagged by {n} samples");
+                    continue;
+                }
+                Err(tokio::sync::broadcast::error::TryRecvError::Closed) => {
                     eprintln!("dsu: device thread channel closed, shutting down");
                     return false;
                 }

@@ -10,11 +10,13 @@ mod triton;
 mod ui;
 
 use hidapi::HidApi;
+use std::net::{IpAddr, Ipv6Addr};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{SyncSender, sync_channel};
 use std::thread;
 use std::time::{Duration, Instant};
+use tokio;
 
 const SAMPLE_QUEUE_LEN: usize = 64;
 
@@ -88,7 +90,46 @@ fn run_server(gui_start_minimized: Option<bool>) -> Result<(), Box<dyn std::erro
     let dsu_wants_device = Arc::new(AtomicBool::new(false));
     let ui_wants_device = Arc::new(AtomicBool::new(false));
     let shutdown = Arc::new(AtomicBool::new(false));
-    let (tx, rx) = sync_channel::<triton::ControllerState>(SAMPLE_QUEUE_LEN);
+    let (tx, _rx) = tokio::sync::broadcast::channel::<triton::ControllerState>(SAMPLE_QUEUE_LEN);
+
+
+    let mut server_handles = Vec::new();
+
+    let dsu_wants = dsu_wants_device.clone();
+    let shutdown = shutdown.clone();
+
+    for ip_str in config::bind_hosts(dsu_expose, dsu_ip_version) {
+        let dsu_wants = dsu_wants.clone();
+        let shutdown = shutdown.clone();
+
+        let rx = tx.subscribe();
+
+        let handle = std::thread::Builder::new()
+            .name(format!("dsu-server_{ip_str}"))
+            .spawn(move || -> std::io::Result<()> {
+                let ip: IpAddr = ip_str.parse().unwrap_or(IpAddr::V6(Ipv6Addr::LOCALHOST));
+
+                let mut server = dsu::Server::bind(
+                    ip,
+                    dsu_port,
+                    dsu_wants,
+                    shutdown,
+                    rx,
+                )?;
+
+                eprintln!(
+                    "sc2dsu DSU server listening on {} (server id 0x{:08X})",
+                    server.local_addr()?,
+                    server.server_id()
+                );
+
+                eprintln!("waiting for client subscription before opening the controller ...");
+
+                server.run()
+            })?;
+
+        server_handles.push(handle);
+    }
 
     let device_handle = {
         let dsu_wants = dsu_wants_device.clone();
@@ -99,30 +140,15 @@ fn run_server(gui_start_minimized: Option<bool>) -> Result<(), Box<dyn std::erro
             .spawn(move || run_device_thread(dsu_wants, ui_wants, shutdown, tx))?
     };
 
-    let server_handle = {
-        let dsu_wants = dsu_wants_device.clone();
-        let shutdown = shutdown.clone();
-        thread::Builder::new()
-            .name("dsu-server".into())
-            .spawn(move || -> std::io::Result<()> {
-                let mut server = dsu::Server::bind(dsu_ip_version, dsu_port, dsu_expose, dsu_wants, shutdown, rx)?;
-                eprintln!(
-                    "sc2dsu DSU server listening on {}  (server id 0x{:08X})",
-                    server.local_addr()?,
-                    server.server_id()
-                );
-                eprintln!("waiting for client subscription before opening the controller ...");
-                server.run()
-            })?
-    };
-
     match gui_start_minimized {
         Some(start_minimized) => {
             ui::run(shutdown.clone(), ui_wants_device.clone(), start_minimized)
                 .map_err(|e| -> Box<dyn std::error::Error> { e.into() })?;
-        }
+            }
         None => {
-            let _ = server_handle.join();
+            for handle in server_handles {
+                let _ = handle.join();
+            }
         }
     }
 
@@ -135,7 +161,8 @@ fn run_device_thread(
     dsu_wants: Arc<AtomicBool>,
     ui_wants: Arc<AtomicBool>,
     shutdown: Arc<AtomicBool>,
-    tx: SyncSender<triton::ControllerState>,
+    // tx: SyncSender<triton::ControllerState>,
+    tx: tokio::sync::broadcast::Sender<triton::ControllerState>,
 ) {
     let want_device = || dsu_wants.load(Ordering::Relaxed) || ui_wants.load(Ordering::Relaxed);
 
@@ -198,7 +225,7 @@ fn run_device_thread(
 
 fn run_slot(
     slot: &mut triton::OpenSlot,
-    tx: &SyncSender<triton::ControllerState>,
+    tx: &tokio::sync::broadcast::Sender<triton::ControllerState>,
     want_device: &impl Fn() -> bool,
     shutdown: &AtomicBool,
 ) {
@@ -226,7 +253,7 @@ fn run_slot(
                 } else {
                     stale_count = 0;
                     last_imu_ts = sample.imu.timestamp_us;
-                    let _ = tx.try_send(sample);
+                    let _ = tx.send(sample);
                 }
             }
             Ok(None) => {

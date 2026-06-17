@@ -244,7 +244,7 @@ impl App {
         self.cb_ipv.set_collection(
             config::IpVersion::VALUES
                 .iter()
-                .map(|v| v.as_str())
+                .map(|v| v.label())
                 .collect::<Vec<_>>()
         );
         self.suppress_change.set(true);
@@ -277,8 +277,14 @@ impl App {
         self.set_axis_widgets(&cfg.accel.y, &self.cb_ay, &self.chk_ay);
         self.set_axis_widgets(&cfg.accel.z, &self.cb_az, &self.chk_az);
         self.edit_port.set_text(&cfg.port.to_string());
-        let ipv_idx = cfg.ip_version.find_index();
-        self.cb_ipv.set_selection(Some(ipv_idx));
+        // Set initial selection by finding the label that matches cfg.ip_version
+        let current = cfg.ip_version.label();
+        for (i, label) in config::IpVersion::VALUES.iter().enumerate() {
+            if label.label() == current {
+                self.cb_ipv.set_selection(Some(i));
+                break;
+            }
+        }
     }
 
     fn set_axis_widgets(
@@ -311,7 +317,14 @@ impl App {
         cfg.accel.x = self.read_axis_widgets(&self.cb_ax, &self.chk_ax);
         cfg.accel.y = self.read_axis_widgets(&self.cb_ay, &self.chk_ay);
         cfg.accel.z = self.read_axis_widgets(&self.cb_az, &self.chk_az);
-        cfg.ip_version = config::IpVersion::from_index(self.cb_ipv.selection().unwrap_or(0));
+        cfg.ip_version = if let Some(sel) = self.cb_ipv.selection() {
+            let selected_label = &config::IpVersion::VALUES[sel];
+            config::IpVersion::VALUES.iter().find(|v| v.label() == selected_label.label())
+                .copied()
+                .unwrap_or(config::IpVersion::default())
+        } else {
+            config::IpVersion::default()
+        };
         let port_text = self.edit_port.text();
         let mut note: &str = "saved.";
         match port_text.parse::<u16>() {

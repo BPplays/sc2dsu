@@ -1,3 +1,4 @@
+use std::fmt;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::sync::RwLock;
@@ -63,12 +64,28 @@ impl Default for IpVersion {
     }
 }
 
+/// Inverse lookup from display label string to IpVersion variant. Derived once from VALUES
+/// so that the enum values, not hardcoded integers, drive all mapping.
+static LABEL_MAP: std::sync::LazyLock<std::collections::HashMap<&'static str, IpVersion>> =
+    std::sync::LazyLock::new(|| {
+        let mut m = std::collections::HashMap::new();
+        for v in IpVersion::VALUES {
+            m.insert(v.label(), v);
+        }
+        m
+    });
+
 impl IpVersion {
     pub const VALUES: [Self; 3] = [
         Self::DualStack,
         Self::IPv6Only,
         Self::IPv4Only,
     ];
+
+    /// Display label from which the enum variant is named (e.g. "IPv4Only", "DualStack").
+    pub fn label(&self) -> &'static str {
+        self.as_str()
+    }
 
     pub fn as_str(&self) -> &'static str {
         match self {
@@ -78,18 +95,9 @@ impl IpVersion {
         }
     }
 
-    /// Find index of this version in VALUES array
-    pub fn find_index(&self) -> usize {
-        Self::VALUES.iter().position(|&v| v == *self).unwrap_or(0)
-    }
-
-    /// Get version from index in VALUES array
-    pub fn from_index(idx: usize) -> Self {
-        if idx < Self::VALUES.len() {
-            Self::VALUES[idx]
-        } else {
-            Self::DualStack
-        }
+    /// Parse back from a label string (as returned via `label`). Always derives from VALUES.
+    pub fn from_label(label: &str) -> Option<Self> {
+        LABEL_MAP.get(label).copied()
     }
 }
 

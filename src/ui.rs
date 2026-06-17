@@ -11,8 +11,6 @@ const H: i32 = 810;
 
 const AXIS_LABELS: [&str; 3] = ["raw X", "raw Y", "raw Z"];
 
-const IP_VERSIONS: [&str; 3] = ["DualStack", "IPv4Only", "IPv6Only"];
-
 const VIZ_BG_COLOR: u32 = 0x0020_2020;
 const VIZ_EDGE_COLOR: u32 = 0x0060_E080;
 const AXIS_X_COLOR: u32 = 0x0000_00FF;
@@ -233,7 +231,6 @@ pub struct App {
 impl App {
     fn on_init(&self) {
         let items: Vec<&'static str> = AXIS_LABELS.to_vec();
-        self.cb_ipv.set_collection(IP_VERSIONS.to_vec());
         for cb in [
             &self.cb_gx,
             &self.cb_gy,
@@ -244,6 +241,7 @@ impl App {
         ] {
             cb.set_collection(items.clone());
         }
+        self.cb_ipv.set_collection(config::IpVersion::LABELS.to_vec());
         self.suppress_change.set(true);
         self.populate_from_config();
         self.suppress_change.set(false);
@@ -308,13 +306,9 @@ impl App {
         cfg.accel.x = self.read_axis_widgets(&self.cb_ax, &self.chk_ax);
         cfg.accel.y = self.read_axis_widgets(&self.cb_ay, &self.chk_ay);
         cfg.accel.z = self.read_axis_widgets(&self.cb_az, &self.chk_az);
-        let old_ip = cfg.ip_version;
         cfg.ip_version = config::IpVersion::from_index(self.cb_ipv.selection().unwrap_or(0));
         let port_text = self.edit_port.text();
         let mut note: &str = "saved.";
-        if old_ip != cfg.ip_version {
-            note = "saved (next launch).";
-        }
         match port_text.parse::<u16>() {
             Ok(p) => cfg.port = p,
             Err(_) if port_text.trim().is_empty() => {}

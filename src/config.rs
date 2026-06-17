@@ -123,11 +123,11 @@ pub fn generation() -> u64 {
     GENERATION.load(Ordering::Acquire)
 }
 
-pub fn bind_host(expose_to_network: bool) -> &'static str {
+pub fn bind_hosts(expose_to_network: bool) -> &'static [&'static str] {
     if expose_to_network {
-        "0.0.0.0"
+        &["::", "0.0.0.0"]
     } else {
-        "127.0.0.1"
+        &["::1", "127.0.0.1"]
     }
 }
 
@@ -190,7 +190,7 @@ mod tests {
 
     #[test]
     fn bind_host_maps_flag() {
-        assert_eq!(bind_host(true), "0.0.0.0");
-        assert_eq!(bind_host(false), "127.0.0.1");
+        assert_eq!(bind_hosts(true), &["::", "0.0.0.0"]);
+        assert_eq!(bind_hosts(false), &["::1", "127.0.0.1"]);
     }
 }

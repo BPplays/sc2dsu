@@ -395,15 +395,22 @@ impl App {
 
     fn refresh_stats(&self) {
         let s = stats::snapshot();
-        let host = config::bind_host(config::snapshot().expose_to_network);
+        let hosts = config::bind_hosts(config::snapshot().expose_to_network);
+        let addrs = hosts
+            .iter()
+            .map(|host| format!("{host}:{}", s.server.bound_port))
+            .collect::<Vec<_>>()
+            .join(", ");
+
         self.lbl_addr.set_text(&format!(
-            "Listening on:    {}",
-            if s.server.bound_port == 0 {
-                "binding…".to_string()
-            } else {
-                format!("{host}:{}", s.server.bound_port)
-            }
+                "Listening on:    {}",
+                if s.server.bound_port == 0 {
+                    "binding…".to_string()
+                } else {
+                    addrs
+                }
         ));
+
         self.lbl_id
             .set_text(&format!("Server id:       0x{:08X}", s.server.server_id));
         let device_state = if s.server.device_active {

@@ -63,6 +63,32 @@ impl Default for IpVersion {
     }
 }
 
+impl IpVersion {
+    pub const LABELS: &'static [&'static str] = &["DualStack", "IPv4Only", "IPv6Only"];
+
+    /// Returns the index in LABELS, or 0 (DualStack) if not found.
+    pub fn find_index(self) -> usize {
+        Self::LABELS.iter().position(|&l| l == self.as_str()).unwrap_or(0)
+    }
+
+    /// Parse an IpVersion from a LABEL string index; defaults to DualStack.
+    pub fn from_index(idx: usize) -> Self {
+        match idx {
+            1 => Self::IPv4Only,
+            2 => Self::IPv6Only,
+            _ => Self::DualStack,
+        }
+    }
+
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::DualStack => "DualStack",
+            Self::IPv4Only => "IPv4Only",
+            Self::IPv6Only => "IPv6Only",
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Config {

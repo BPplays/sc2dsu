@@ -130,9 +130,6 @@ fn run_server(gui_start_minimized: Option<bool>) -> Result<(), Box<dyn std::erro
 
         server_handles.push(handle);
     }
-    for handle in &server_handles {
-        println!("{:?}", handle.thread().name());
-    }
 
     let device_handle = {
         let dsu_wants = dsu_wants_device.clone();
@@ -145,15 +142,21 @@ fn run_server(gui_start_minimized: Option<bool>) -> Result<(), Box<dyn std::erro
 
     match gui_start_minimized {
         Some(start_minimized) => {
+            for handle in server_handles {
+                println!("{:?}", handle.thread().name());
+            }
             ui::run(shutdown.clone(), ui_wants_device.clone(), start_minimized)
                 .map_err(|e| -> Box<dyn std::error::Error> { e.into() })?;
             }
         None => {
             for handle in server_handles {
+
+                println!("{:?}", handle.thread().name());
                 let _ = handle.join();
             }
         }
     }
+
 
     shutdown.store(true, Ordering::Relaxed);
     let _ = device_handle.join();

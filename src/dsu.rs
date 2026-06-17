@@ -78,7 +78,8 @@ impl Server {
         shutdown: Arc<AtomicBool>,
         sample_rx: Receiver<ControllerState>,
     ) -> io::Result<Self> {
-        let socket = UdpSocket::bind((config::bind_hosts(expose_to_network), port))?;
+        // let socket = UdpSocket::bind((config::bind_hosts(expose_to_network), port))?;
+        let socket = UdpSocket::bind(("::1", port))?;
         socket.set_read_timeout(Some(RECV_TIMEOUT))?;
         let server_id = rand_u32();
         Ok(Self {

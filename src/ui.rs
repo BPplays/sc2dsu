@@ -77,6 +77,7 @@ pub struct App {
     #[nwg_control(parent: status_frame, position: (12, 34), size: (500, 18), text: "Listening on:    binding…")]
     lbl_addr: nwg::Label,
 
+
     #[nwg_control(parent: status_frame, position: (12, 54), size: (500, 18), text: "Server id:       —")]
     lbl_id: nwg::Label,
 
@@ -164,38 +165,45 @@ pub struct App {
     #[nwg_events(OnButtonClick: [App::on_change])]
     chk_az: nwg::CheckBox,
 
-    #[nwg_control(parent: window, position: (10, 486), size: (W - 20, 116))]
+    #[nwg_control(parent: window, position: (10, 486), size: (W - 20, 146))]
     sys_frame: nwg::Frame,
     #[nwg_control(parent: sys_frame, position: (10, 10), size: (260, 18), text: "System")]
     lbl_sys_hdr: nwg::Label,
 
-    #[nwg_control(parent: sys_frame, position: (12, 34), size: (160, 18), text: "UDP port (next launch):")]
+
+    #[nwg_control(parent: sys_frame, position: (12, 34), size: (160, 18), text: "IP version")]
+    lbl_ipv: nwg::Label,
+    #[nwg_control(parent: sys_frame, position: (240, 30), size: (90, 22))]
+    #[nwg_events(OnComboxBoxSelection: [App::on_change])]
+    cb_ipv: nwg::ComboBox<&'static str>,
+
+    #[nwg_control(parent: sys_frame, position: (12, 64), size: (160, 18), text: "UDP port (next launch):")]
     lbl_port: nwg::Label,
-    #[nwg_control(parent: sys_frame, position: (180, 32), size: (80, 22))]
+    #[nwg_control(parent: sys_frame, position: (180, 62), size: (80, 22))]
     #[nwg_events(OnTextInput: [App::on_change])]
     edit_port: nwg::TextInput,
 
-    #[nwg_control(parent: sys_frame, position: (280, 34), size: (200, 18), text: "Open to network")]
+    #[nwg_control(parent: sys_frame, position: (280, 64), size: (200, 18), text: "Open to network")]
     #[nwg_events(OnButtonClick: [App::on_expose_toggle])]
     chk_expose: nwg::CheckBox,
 
-    #[nwg_control(parent: sys_frame, position: (12, 62), size: (250, 18), text: "Start with Windows (per-user)")]
+    #[nwg_control(parent: sys_frame, position: (12, 92), size: (250, 18), text: "Start with Windows (per-user)")]
     #[nwg_events(OnButtonClick: [App::on_autostart_toggle])]
     chk_autostart: nwg::CheckBox,
 
-    #[nwg_control(parent: sys_frame, position: (270, 62), size: (240, 18), text: "Start minimized to tray")]
+    #[nwg_control(parent: sys_frame, position: (270, 92), size: (240, 18), text: "Start minimized to tray")]
     #[nwg_events(OnButtonClick: [App::on_start_min_toggle])]
     chk_start_min: nwg::CheckBox,
 
-    #[nwg_control(parent: sys_frame, position: (12, 90), size: (320, 18), text: "Hide to tray on window close (don't quit)")]
+    #[nwg_control(parent: sys_frame, position: (12, 120), size: (320, 18), text: "Hide to tray on window close (don't quit)")]
     #[nwg_events(OnButtonClick: [App::on_close_to_tray_toggle])]
     chk_close_to_tray: nwg::CheckBox,
 
-    #[nwg_control(parent: sys_frame, position: (360, 86), size: (150, 24), text: "Restore defaults")]
+    #[nwg_control(parent: sys_frame, position: (360, 116), size: (150, 24), text: "Restore defaults")]
     #[nwg_events(OnButtonClick: [App::on_restore_defaults])]
     btn_restore: nwg::Button,
 
-    #[nwg_control(parent: Some(&data.window), position: (10, 610), size: (W - 20, 152))]
+    #[nwg_control(parent: Some(&data.window), position: (10, 640), size: (W - 20, 152))]
     #[nwg_events(OnPaint: [App::on_viz_paint(SELF, EVT_DATA)])]
     viz_canvas: nwg::ExternCanvas,
 

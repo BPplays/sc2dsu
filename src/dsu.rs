@@ -74,30 +74,81 @@ impl Server {
     pub fn bind(
         port: u16,
         expose_to_network: bool,
+        ip_version: config::IpVersion,
         dsu_wants_device: Arc<AtomicBool>,
         shutdown: Arc<AtomicBool>,
         sample_rx: Receiver<ControllerState>,
     ) -> io::Result<Self> {
-        // let socket = UdpSocket::bind((config::bind_hosts(expose_to_network), port))?;
-        let socket = UdpSocket::bind(("::1", port))?;
-        socket.set_read_timeout(Some(RECV_TIMEOUT))?;
-        let server_id = rand_u32();
-        Ok(Self {
-            socket,
-            server_id,
-            subscribers: HashMap::new(),
-            dsu_wants_device,
-            shutdown,
-            sample_rx,
-            last_gyro: [0.0; 3],
-            last_cleanup: Instant::now(),
-            last_stats: Instant::now(),
-            samples_in_window: 0,
-            packets_in_window: 0,
-            requests_in_window: 0,
-            orientation_q: [1.0, 0.0, 0.0, 0.0],
-            last_sample_at: None,
-        })
+        // For this implementation, we'll use standard UdpSocket behavior which handles
+        // dual-stack (both v4 and v6) appropriately when needed. If specific IPv4 or IPv6 only binding is needed,
+        // the bind_hosts function returns the right addresses.
+        match ip_version {
+            config::IpVersion::DualStack => {
+                // In dual-stack mode, either we can bind to :: which handles both (default behavior)
+                // or we need to create separate sockets for IPv4 and IPv6 (complex)
+                let socket = UdpSocket::bind((config::bind_hosts(expose_to_network, ip_version)[0].as_str(), port))?;
+                socket.set_read_timeout(Some(RECV_TIMEOUT))?;
+                let server_id = rand_u32();
+                Ok(Self {
+                    socket,
+                    server_id,
+                    subscribers: HashMap::new(),
+                    dsu_wants_device,
+                    shutdown,
+                    sample_rx,
+                    last_gyro: [0.0; 3],
+                    last_cleanup: Instant::now(),
+                    last_stats: Instant::now(),
+                    samples_in_window: 0,
+                    packets_in_window: 0,
+                    requests_in_window: 0,
+                    orientation_q: [1.0, 0.0, 0.0, 0.0],
+                    last_sample_at: None,
+                })
+            },
+            config::IpVersion::IPv4Only => {
+                let socket = UdpSocket::bind((config::bind_hosts(expose_to_network, ip_version)[0].as_str(), port))?;
+                socket.set_read_timeout(Some(RECV_TIMEOUT))?;
+                let server_id = rand_u32();
+                Ok(Self {
+                    socket,
+                    server_id,
+                    subscribers: HashMap::new(),
+                    dsu_wants_device,
+                    shutdown,
+                    sample_rx,
+                    last_gyro: [0.0; 3],
+                    last_cleanup: Instant::now(),
+                    last_stats: Instant::now(),
+                    samples_in_window: 0,
+                    packets_in_window: 0,
+                    requests_in_window: 0,
+                    orientation_q: [1.0, 0.0, 0.0, 0.0],
+                    last_sample_at: None,
+                })
+            },
+            config::IpVersion::IPv6Only => {
+                let socket = UdpSocket::bind((config::bind_hosts(expose_to_network, ip_version)[0].as_str(), port))?;
+                socket.set_read_timeout(Some(RECV_TIMEOUT))?;
+                let server_id = rand_u32();
+                Ok(Self {
+                    socket,
+                    server_id,
+                    subscribers: HashMap::new(),
+                    dsu_wants_device,
+                    shutdown,
+                    sample_rx,
+                    last_gyro: [0.0; 3],
+                    last_cleanup: Instant::now(),
+                    last_stats: Instant::now(),
+                    samples_in_window: 0,
+                    packets_in_window: 0,
+                    requests_in_window: 0,
+                    orientation_q: [1.0, 0.0, 0.0, 0.0],
+                    last_sample_at: None,
+                })
+            }
+        }
     }
 
     pub fn local_addr(&self) -> io::Result<SocketAddr> {

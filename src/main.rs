@@ -105,7 +105,7 @@ fn run_server(gui_start_minimized: Option<bool>) -> Result<(), Box<dyn std::erro
         thread::Builder::new()
             .name("dsu-server".into())
             .spawn(move || -> std::io::Result<()> {
-                let mut server = dsu::Server::bind(dsu_port, dsu_expose, dsu_wants, shutdown, rx)?;
+                let mut server = dsu::Server::bind(dsu_port, dsu_expose, dsu_ip_version, dsu_wants, shutdown, rx)?;
                 eprintln!(
                     "sc2dsu DSU server listening on {}  (server id 0x{:08X})",
                     server.local_addr()?,

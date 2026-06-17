@@ -403,7 +403,7 @@ impl App {
 
     fn refresh_stats(&self) {
         let s = stats::snapshot();
-        let hosts = config::bind_hosts(config::snapshot().expose_to_network);
+        let hosts = config::bind_hosts(config::snapshot().expose_to_network, config::snapshot().ip_version);
         let addrs = hosts
             .iter()
             .map(|host| format!("{host}:{}", s.server.bound_port))

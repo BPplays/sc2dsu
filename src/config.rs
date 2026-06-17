@@ -50,6 +50,19 @@ impl Default for AxisMap {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum IpVersion {
+    DualStack,
+    IPv4Only,
+    IPv6Only,
+}
+
+impl Default for IpVersion {
+    fn default() -> Self {
+        Self::DualStack
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Config {
@@ -60,6 +73,7 @@ pub struct Config {
     pub expose_to_network: bool,
     pub close_to_tray: bool,
     pub auto_calibrate: bool,
+    pub ip_version: IpVersion,
 }
 
 impl Config {
@@ -71,6 +85,7 @@ impl Config {
         expose_to_network: false,
         close_to_tray: false,
         auto_calibrate: true,
+        ip_version: IpVersion::DualStack,
     };
 }
 
@@ -123,11 +138,29 @@ pub fn generation() -> u64 {
     GENERATION.load(Ordering::Acquire)
 }
 
-pub fn bind_hosts(expose_to_network: bool) -> &'static [&'static str] {
-    if expose_to_network {
-        &["::", "0.0.0.0"]
-    } else {
-        &["::1", "127.0.0.1"]
+pub fn bind_hosts(expose_to_network: bool, ip_version: IpVersion) -> Vec<String> {
+    match ip_version {
+        IpVersion::DualStack => {
+            if expose_to_network {
+                vec!["::".to_string(), "0.0.0.0".to_string()]
+            } else {
+                vec!["::1".to_string(), "127.0.0.1".to_string()]
+            }
+        },
+        IpVersion::IPv4Only => {
+            if expose_to_network {
+                vec!["0.0.0.0".to_string()]
+            } else {
+                vec!["127.0.0.1".to_string()]
+            }
+        },
+        IpVersion::IPv6Only => {
+            if expose_to_network {
+                vec!["::".to_string()]
+            } else {
+                vec!["::1".to_string()]
+            }
+        }
     }
 }
 
@@ -190,7 +223,13 @@ mod tests {
 
     #[test]
     fn bind_host_maps_flag() {
-        assert_eq!(bind_hosts(true), &["::", "0.0.0.0"]);
-        assert_eq!(bind_hosts(false), &["::1", "127.0.0.1"]);
+        assert_eq!(bind_hosts(true, IpVersion::DualStack), vec!["::".to_string(), "0.0.0.0".to_string()]);
+        assert_eq!(bind_hosts(false, IpVersion::DualStack), vec!["::1".to_string(), "127.0.0.1".to_string()]);
+        
+        assert_eq!(bind_hosts(true, IpVersion::IPv4Only), vec!["0.0.0.0".to_string()]);
+        assert_eq!(bind_hosts(false, IpVersion::IPv4Only), vec!["127.0.0.1".to_string()]);
+        
+        assert_eq!(bind_hosts(true, IpVersion::IPv6Only), vec!["::".to_string()]);
+        assert_eq!(bind_hosts(false, IpVersion::IPv6Only), vec!["::1".to_string()]);
     }
 }

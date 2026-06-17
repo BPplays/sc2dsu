@@ -82,6 +82,7 @@ fn run_server(gui_start_minimized: Option<bool>) -> Result<(), Box<dyn std::erro
     let cfg = config::load_or_create();
     let dsu_port = cfg.port;
     let dsu_expose = cfg.expose_to_network;
+    let dsu_ip_version = cfg.ip_version;
     config::install(cfg);
 
     let dsu_wants_device = Arc::new(AtomicBool::new(false));

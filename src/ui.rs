@@ -241,7 +241,12 @@ impl App {
         ] {
             cb.set_collection(items.clone());
         }
-        self.cb_ipv.set_collection(config::IpVersion::LABELS.to_vec());
+        self.cb_ipv.set_collection(
+            config::IpVersion::VALUES
+                .iter()
+                .map(|v| v.as_str())
+                .collect::<Vec<_>>()
+        );
         self.suppress_change.set(true);
         self.populate_from_config();
         self.suppress_change.set(false);
